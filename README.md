@@ -2,18 +2,17 @@
 cert-manager-webhook-antsdns
 
 
-=====1 install docker
-curl -fsSL https://get.docker.com/ | sh
-sudo systemctl start docker
-sudo systemctl start docker.service
-systemctl enable docker
+### 1 install docker
+
+`curl -fsSL https://get.docker.com/ | sh `  
+`sudo systemctl start docker `  
+`sudo systemctl start docker.service  `  
+`systemctl enable docker  `  
 
 
 
-
-
-=====2 install kubectl 1.23.8
-cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+### 2 install kubectl 1.23.8
+`cat <<EOF > /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
 baseurl=http://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
@@ -25,69 +24,69 @@ EOF
 yum remove kubeadm kubectl kubelet kubernetes-cni cri-tools socat
 yum --showduplicates list kubeadm
 yum -y install kubeadm-1.23.8 kubectl-1.23.8 kubelet-1.23.8
-systemctl enable kubelet
+systemctl enable kubelet`
 
 
-=====3 install minikube
-cd /usr/src/cert-manager-antsdns-webhook-release
-sudo install minikube-linux-amd64 /usr/local/bin/minikube
+### 3 install minikube
+`cd /usr/src/cert-manager-antsdns-webhook-release
+sudo install minikube-linux-amd64 /usr/local/bin/minikube`
 
 
-=====4 installcrictl and  init minikube
-cd /usr/src/cert-manager-antsdns-webhook-release
+### 4 installcrictl and  init minikube
+`cd /usr/src/cert-manager-antsdns-webhook-release
 wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
 sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
-minikube start --vm-driver=none  --kubernetes-version=v1.23.8 --image-mirror-country=cn --extra-config=kubelet.cgroup-driver=cgroupfs --extra-config=kubeadm.ignore-preflight-errors=SystemVerification --extra-config=apiserver.enable-admission-plugins="NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,Priority,ResourceQuota" --force
+minikube start --vm-driver=none  --kubernetes-version=v1.23.8 --image-mirror-country=cn --extra-config=kubelet.cgroup-driver=cgroupfs --extra-config=kubeadm.ignore-preflight-errors=SystemVerification --extra-config=apiserver.enable-admission-plugins="NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,Priority,ResourceQuota" --force`
   
 
-=====5 install cert-manager
-cd /usr/src/cert-manager-antsdns-webhook-release
+### 5 install cert-manager
+`cd /usr/src/cert-manager-antsdns-webhook-release
 docker load -i quay.io_jetstack_cert-manager-cainjector_1.7.2.tar
 docker load -i quay.io_jetstack_cert-manager-controller_1.7.2.tar
 docker load -i quay.io_jetstack_cert-manager-webhook_1.7.2.tar
-kubectl apply -f  cert-manager-antsdns-webhook-v1/1.7.2cert-manager.yaml
+kubectl apply -f  cert-manager-antsdns-webhook-v1/1.7.2cert-manager.yaml`
 
 
-=====6 install helm
-cd  /usr/src/cert-manager-antsdns-webhook-release
+### 6 install helm
+`cd  /usr/src/cert-manager-antsdns-webhook-release
 tar zxf helm-v2.17.0-linux-amd64.tar.tar.gz
 cd linux-amd64/
 mv helm /usr/local/bin/
-chmod +x /usr/local/bin/helm
+chmod +x /usr/local/bin/helm`
 
 
-=====7 install helm tiller
-cd  /usr/src/cert-manager-antsdns-webhook-release
+### 7 install helm tiller
+`cd  /usr/src/cert-manager-antsdns-webhook-release
 docker load -i docker_ghcr.io.helm.tiller.2_17_0.tar
 #docker pull ghcr.io/helm/tiller:v2.17.0
 kubectl create serviceaccount --namespace kube-system tiller
 kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
 kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
 helm init --service-account tiller --upgrade
-helm init --service-account tiller --override spec.selector.matchLabels.'name'='tiller',spec.selector.matchLabels.'app'='helm' --output yaml | sed 's@apiVersion: extensions/v1beta1@apiVersion: apps/v1@' | kubectl apply -f -
+helm init --service-account tiller --override spec.selector.matchLabels.'name'='tiller',spec.selector.matchLabels.'app'='helm' --output yaml | sed 's@apiVersion: extensions/v1beta1@apiVersion: apps/v1@' | kubectl apply -f `
 
  
 
-=====8  install cmctl
-cd /usr/src/cert-manager-antsdns-webhook-release
+### 8  install cmctl
+`cd /usr/src/cert-manager-antsdns-webhook-release
 tar xzf cmctl-linux-amd64.tar.gz
 sudo mv cmctl /usr/local/bin
-cmctl check api
+cmctl check api`
 
 
-=====9 install antsdns_webhook model
-cd /usr/src/cert-manager-antsdns-webhook-release
+### 9 install antsdns_webhook model
+`cd /usr/src/cert-manager-antsdns-webhook-release
 docker load -i /usr/src/cert-manager-antsdns-webhook-release/docker_image_antsdns-webhook_0.1.1.tar
-kubectl apply -f ./pod/00bundle.yaml 
+kubectl apply -f ./pod/00bundle.yaml `
 
 
-=====10 check env
-docker version
+### 10 check env
+`docker version
 helm version
 minikube version
 kubectl version
 cmctl version 
-minikube kubectl -- get pods -A
+minikube kubectl -- get pods -A`
 
 ---------------------------------------------------------
 [root@control-plane src]# docker version
@@ -148,25 +147,25 @@ kube-system    tiller-deploy-74bcf4c66c-fhv5b                            1/1    
 [root@control-plane src]# 
 
 
-=====12 creat cecret clusterissuer
-cd /usr/src/cert-manager-antsdns-webhook-release
+### 11 creat cecret clusterissuer
+`cd /usr/src/cert-manager-antsdns-webhook-release
 kubectl apply -f ./prod/01cecret.yaml
-kubectl apply -f ./prod/02letsencrypt-clusterissuer.yaml
+kubectl apply -f ./prod/02letsencrypt-clusterissuer.yaml`
 ###
 01cecret.yaml =====>appId: xxxx,appKey: xxxx
 ###
 02letsencrypt-clusterissuer =====>ispAddress: "xxxx"
 
 
-====13 apply cert
-cd /usr/src/cert-manager-antsdns-webhook-release
-kubectl apply -f ./prod/03certif-165668-com-clusterissuer.yaml
+### 12 apply cert
+`cd /usr/src/cert-manager-antsdns-webhook-release
+kubectl apply -f ./prod/03certif-165668-com-clusterissuer.yaml`
 
 
-====14 check cert status
-cmctl status certificate 165668-com  -n cert-manager
+### 13 check cert status
+`cmctl status certificate 165668-com  -n cert-manager`
 
 
-====15 view cert
-kubectl get secret 165668-com-tls -n cert-manager -o yaml
+### 14 view cert
+`kubectl get secret 165668-com-tls -n cert-manager -o yaml`
 
