@@ -1,0 +1,306 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: antsdns-webhook
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: antsdns-webhook
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - 'secrets'
+    verbs:
+      - 'get'
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: antsdns-webhook:flowcontrol-solver
+  labels:
+    app: antsdns-webhook
+rules:
+  - apiGroups:
+      - "flowcontrol.apiserver.k8s.io"
+    resources:
+      - 'prioritylevelconfigurations'
+      - 'flowschemas'
+    verbs:
+      - 'list'
+      - 'watch'
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: antsdns-webhook:flowcontrol-solver
+  labels:
+    app: antsdns-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: antsdns-webhook:flowcontrol-solver
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: antsdns-webhook
+    namespace: cert-manager
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: antsdns-webhook
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: antsdns-webhook
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: antsdns-webhook
+    namespace: cert-manager
+
+---
+# Grant the webhook permission to read the ConfigMap containing the Kubernetes
+# apiserver's requestheader-ca-certificate.
+# This ConfigMap is automatically created by the Kubernetes apiserver.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: antsdns-webhook:webhook-authentication-reader
+  namespace: kube-system
+  labels:
+    app: antsdns-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: antsdns-webhook
+    namespace: cert-manager
+---
+# apiserver gets the auth-delegator role to delegate auth decisions to
+# the core apiserver
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: antsdns-webhook:auth-delegator
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: antsdns-webhook
+    namespace: cert-manager
+---
+# Grant cert-manager permission to validate using our apiserver
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: antsdns-webhook:domain-solver
+  labels:
+    app: antsdns-webhook
+rules:
+  - apiGroups:
+      - acme.vedns.com
+    resources:
+      - '*'
+    verbs:
+      - 'create'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: antsdns-webhook:domain-solver
+  labels:
+    app: antsdns-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: antsdns-webhook:domain-solver
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: cert-manager
+    namespace: cert-manager
+
+---
+# Source: antsdns-webhook/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: antsdns-webhook
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+  selector:
+    app: antsdns-webhook
+
+---
+# Source: antsdns-webhook/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: antsdns-webhook
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+spec:
+  replicas:
+  selector:
+    matchLabels:
+      app: antsdns-webhook
+  template:
+    metadata:
+      labels:
+        app: antsdns-webhook
+    spec:
+      serviceAccountName: antsdns-webhook
+      containers:
+        - name: antsdns-webhook
+          image: ants/antsdns-webhook:0.1.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --tls-cert-file=/tls/tls.crt
+            - --tls-private-key-file=/tls/tls.key
+          env:
+            - name: GROUP_NAME
+              value: "acme.vedns.com"
+          ports:
+            - name: https
+              containerPort: 443
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /healthz
+              port: https
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /healthz
+              port: https
+          volumeMounts:
+            - name: certs
+              mountPath: /tls
+              readOnly: true
+          resources:
+            {}
+
+      volumes:
+        - name: certs
+          secret:
+            secretName: antsdns-webhook-webhook-tls
+
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.acme.vedns.com
+  labels:
+    app: antsdns-webhook
+  annotations:
+    cert-manager.io/inject-ca-from: "cert-manager/antsdns-webhook-webhook-tls"
+spec:
+  group: acme.vedns.com
+  groupPriorityMinimum: 1000
+  versionPriority: 15
+  service:
+    name: antsdns-webhook
+    namespace: cert-manager
+  version: v1alpha1
+
+---
+# Create a selfsigned Issuer, in order to create a root CA certificate for
+# signing webhook serving certificates
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: antsdns-webhook-selfsign
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+spec:
+  selfSigned: {}
+
+---
+
+# Generate a CA Certificate used to sign certificates for the webhook
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: antsdns-webhook-ca
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+spec:
+  secretName: antsdns-webhook-ca
+  duration: 43800h # 5y
+  issuerRef:
+    name: antsdns-webhook-selfsign
+  commonName: "ca.antsdns-webhook.cert-manager"
+  isCA: true
+
+---
+
+# Create an Issuer that uses the above generated CA certificate to issue certs
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: antsdns-webhook-ca
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+spec:
+  ca:
+    secretName: antsdns-webhook-ca
+
+---
+
+# Finally, generate a serving certificate for the webhook to use
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: antsdns-webhook-webhook-tls
+  namespace: cert-manager
+  labels:
+    app: antsdns-webhook
+spec:
+  secretName: antsdns-webhook-webhook-tls
+  duration: 8760h # 1y
+  issuerRef:
+    name: antsdns-webhook-ca
+  dnsNames:
+  - antsdns-webhook
+  - antsdns-webhook.cert-manager
+  - antsdns-webhook.cert-manager.svc
+  - antsdns-webhook.cert-manager.svc.cluster.local

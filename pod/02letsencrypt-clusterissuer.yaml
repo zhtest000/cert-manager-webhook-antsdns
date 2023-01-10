@@ -1,0 +1,27 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+  namespace: cert-manager
+spec:
+  acme:
+    # The ACME server URL
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Email address used for ACME registration
+    email: antscdn@antsxpm.com
+    # Name of a secret used to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+    - dns01:
+        webhook:
+          groupName: acme.vedns.com
+          solverName: antsdns
+          config:
+            ispAddress: "https://user.dns666.com"
+            appIdSecretRef:
+              name: antsdns-secret
+              key: appId
+            appKeySecretRef:
+              name: antsdns-secret
+              key: appKey

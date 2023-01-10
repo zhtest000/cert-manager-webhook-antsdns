@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: 165668-com
+  namespace: cert-manager
+spec:
+  dnsNames:  
+  - "aaf11ocssafv.165668.com"
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  secretName: 165668-com-tls
