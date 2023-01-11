@@ -32,10 +32,7 @@ systemctl enable kubelet`
 sudo install minikube-linux-amd64 /usr/local/bin/minikube`
 
 
-### 4 installcrictl and  init minikube
-`cd /usr/src/cert-manager-antsdns-webhook-release
-wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
-sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+### 4 init minikube
 minikube start --vm-driver=none  --kubernetes-version=v1.23.8 --image-mirror-country=cn --extra-config=kubelet.cgroup-driver=cgroupfs --extra-config=kubeadm.ignore-preflight-errors=SystemVerification --extra-config=apiserver.enable-admission-plugins="NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,Priority,ResourceQuota" --force`
   
 
@@ -44,7 +41,7 @@ minikube start --vm-driver=none  --kubernetes-version=v1.23.8 --image-mirror-cou
 docker load -i quay.io_jetstack_cert-manager-cainjector_1.7.2.tar
 docker load -i quay.io_jetstack_cert-manager-controller_1.7.2.tar
 docker load -i quay.io_jetstack_cert-manager-webhook_1.7.2.tar
-kubectl apply -f  cert-manager-antsdns-webhook-v1/1.7.2cert-manager.yaml`
+kubectl apply -f  1.7.2cert-manager.yaml`
 
 
 ### 6 install helm
