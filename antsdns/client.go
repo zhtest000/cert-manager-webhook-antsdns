@@ -99,9 +99,11 @@ func getDictSign(dictMap map[string]string)string{
 func (c *antsClient) HasTxtRecord(domain *string, name *string) (bool, error) {
 	recordId,err := c.GetTxtRecordId(domain,name)
 	if err != nil {
+		klog.Errorf("not found recordId: %v", err)
 		return false, err
 	}
 	if len(recordId)>0 {
+		klog.Infof("found--txt--record：%v",recordId);
 		return true,nil
 	}else {
 		klog.Errorf("not found recordId: %v", err)
@@ -194,6 +196,7 @@ func (c *antsClient) UpdateTxtRecord(domain *string, name *string, value *string
 }
 
 func (c *antsClient) GetTxtRecordId(domain *string, name *string) (string,error)  {
+	klog.Infof("[GetTxtRecordId]domain,top %v %v", *domain,*name)
 	var dictMap map[string]string
 	dictMap=make(map[string]string)
 
@@ -206,7 +209,7 @@ func (c *antsClient) GetTxtRecordId(domain *string, name *string) (string,error)
 	delete(dictMap,"secretKey")
 	body, err := json.Marshal(dictMap)
 	if err != nil {
-		klog.V(6).Infof("cannot marshall to json: %v", err)
+		klog.Infof("cannot marshall to json: %v", err)
 		return "",fmt.Errorf("cannot marshall to json: %v", err)
 	}
 	url:=c.antsRecordsUrl("Record.List")
@@ -221,7 +224,7 @@ func (c *antsClient) GetTxtRecordId(domain *string, name *string) (string,error)
 		return "", err
 	}
 	if status == http.StatusNotFound {
-		return "", nil
+		return "", fmt.Errorf("http.StatusNotFound!")
 	} else if status == http.StatusOK {
 		// Maybe parse response body here to really ensure that the record is present
 		//fmt.Println(string(data))
@@ -236,12 +239,12 @@ func (c *antsClient) GetTxtRecordId(domain *string, name *string) (string,error)
 				//fmt.Println(record.Top,record.RecordType)
 				//fmt.Println(err)
 				if nil==err && "TXT"==record.RecordType{
-					//fmt.Println(record.RecordId)
+					klog.Infof("==>RecordId: %v",record.RecordId)
 					return record.RecordId, nil
 				}
 			}
 		}
-		return "", nil
+		return "", fmt.Errorf("can't get record id!")
 	} else {
 		return "", fmt.Errorf("unexpected HTTP status: %d", status)
 	}
@@ -251,6 +254,7 @@ func (c *antsClient) DeleteTxtRecord(domain *string, name *string) error {
 
 	recordId,err := c.GetTxtRecordId(domain,name)
 	if nil!=err{
+		klog.Infof("not found recordId")
 		return err
 	}
 	//fmt.Printf("----recordId=%s\r\n",recordId)
@@ -286,16 +290,18 @@ func (c *antsClient) DeleteTxtRecord(domain *string, name *string) error {
 	return nil
 }
 
-//func main() {
-//	secretId := "abc1b943"
-//	secretKey := "83801697b9684cdca7aec4b4c08ccd43"
-//	antsClient := newClient(secretId,secretKey)
-//	domain:="vedns.com"
-//	name:="axtaaest"
-//	value:="caaaaaaaaaavalue"
-//	//antsClient.CreateTxtRecord(&domain,&name,&value,600)
-//	//has,_:= antsClient.HasTxtRecord(&domain,&name)
-//	antsClient.UpdateTxtRecord(&domain,&name,&value,600)
-//	//antsClient.DeleteTxtRecord(&domain,&name)
-//
-//}
+func Ants_test() {
+	secretId := "abc1b943"
+	secretKey := "83801697b9684cdca7aec4b4c08ccd43"
+	ispAddressV:="http://dns.antsxdp.com"
+	antsClient := newClient(ispAddressV,secretId,secretKey)
+	domain:="vedns.com"
+	name:="axtaaest"
+	value:="caaaaaaaaaavalue"
+	//antsClient.CreateTxtRecord(&domain,&name,&value,600)
+	//has,_:= antsClient.HasTxtRecord(&domain,&name)
+	antsClient.UpdateTxtRecord(&domain,&name,&value,600)
+	//antsClient.DeleteTxtRecord(&domain,&name)
+
+}
+

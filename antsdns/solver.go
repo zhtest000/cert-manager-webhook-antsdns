@@ -55,15 +55,14 @@ func (s *Solver) Present(ch *v1alpha1.ChallengeRequest) error {
 	top, domain := s.getDomainAndEntry(ch)
 
 	present, err := antsClient.HasTxtRecord(&domain, &top)
-	if err != nil {
-		return fmt.Errorf("unable to check TXT record: %v", err)
-	}
 	if present {
+		klog.Infof("update-txt-record")
 		err := antsClient.UpdateTxtRecord(&domain, &top, &ch.Key, 600)
 		if err != nil {
 			return fmt.Errorf("unable to change TXT record: %v", err)
 		}
 	} else {
+		klog.Infof("create-txt-record")
 		err := antsClient.CreateTxtRecord(&domain, &top, &ch.Key, 600)
 		if err != nil {
 			return fmt.Errorf("unable to create TXT record: %v", err)
@@ -131,28 +130,25 @@ func (s *Solver) getSecretData(selector cmmetav1.SecretKeySelector, ns string) (
 // This is in order to facilitate multiple DNS validations for the same domain
 // concurrently.
 func (s *Solver) CleanUp(ch *v1alpha1.ChallengeRequest) error {
-	klog.Infof("Cleaning up txt record: %v %v", ch.ResolvedFQDN, ch.ResolvedZone)
+	klog.Infof("1 Cleaning up txt record: %v %v", ch.ResolvedFQDN, ch.ResolvedZone)
 	antsClient, err := s.newClientFromChallenge(ch)
 	if err != nil {
 		klog.Errorf("New client from challenge error: %v", err)
 		return err
 	}
 	entry, domain := s.getDomainAndEntry(ch)
-
+	klog.Infof("entry,domain=: %v %v",entry, domain)
 	present, err := antsClient.HasTxtRecord(&domain, &entry)
-	if err != nil {
-		return fmt.Errorf("unable to check TXT record: %v", err)
-	}
 
 	if present {
-		klog.V(6).Infof("deleting entry=%s, domain=%s", entry, domain)
+		klog.Infof("HasTxt Record-->deleting entry=%s, domain=%s", entry, domain)
 		err := antsClient.DeleteTxtRecord(&domain, &entry)
 		if err != nil {
 			return fmt.Errorf("unable to remove TXT record: %v", err)
 		}
 	}
 
-	klog.Infof("Cleaned up txt record: %v %v", ch.ResolvedFQDN, ch.ResolvedZone)
+	klog.Infof("2 Cleaned up txt record: %v %v", ch.ResolvedFQDN, ch.ResolvedZone)
 	return nil
 }
 
